@@ -1,6 +1,5 @@
 " colors
 let s:colorscheme = 'darkburn'
-"let s:colorscheme = 'base16-default-dark'
 if !exists('g:colors_name') || g:colors_name != s:colorscheme
   execute 'colorscheme ' . s:colorscheme
 endif
@@ -20,8 +19,11 @@ Plugin 'vim-airline/vim-airline-themes'
 Plugin 'flazz/vim-colorschemes'
 Plugin 'chriskempson/base16-vim'
 Plugin 'fatih/vim-go'
-"Bundle 'chase/vim-ansible-yaml'
-Bundle 'scrooloose/nerdtree'
+Plugin 'junegunn/fzf'
+Plugin 'jremmen/vim-ripgrep'
+Plugin 'hashivim/vim-terraform'
+Bundle 'tpope/vim-commentary'
+
 
 call vundle#end()            " required
 filetype plugin indent on    " required
@@ -71,6 +73,10 @@ nnoremap <C-k> <C-w><C-k>
 nnoremap <C-l> <C-w><C-l>
 nnoremap g<C-l> <C-l>
 
+" fzf
+nnoremap <Leader>f :FZF<CR>
+nnoremap <Leader>b :Buffers<CR>
+
 " snippets
 let g:UltiSnipsExpandTrigger="<c-e>"
 let g:UltiSnipsEditSplit="context"
@@ -90,7 +96,7 @@ let g:airline#extensions#tmuxline#enabled = 0
 
 " terminal
 "tnoremap <C-l> <Nop>
-set scrollback=10000
+"set scrollback=10000
 augroup InitVimTerminalSettings
   autocmd!
   autocmd TermOpen * setlocal nonumber
@@ -123,31 +129,30 @@ nnoremap <Leader>f :FZF<CR>
 nnoremap <Leader>z :Z<CR>
 nnoremap <Leader>b :Buffers<CR>
 
-command! -nargs=0 Delete call s:delete()
-function! s:delete()
-  let file = expand("%:p")
-  execute 'bdelete '.bufnr('%')
-  call delete(file)
+" fzf + z
+function! s:z(fullscreen, ...)
+  if a:0 == 0
+    call fzf#run(fzf#wrap('Z', {'source': '. ~/.oh-my-zsh/plugins/z/z.sh; _z 2>&1 | sed "s/^[0-9.]* *//"', 'sink': 'lcd', 'options': '--tac --tiebreak=index'}, a:fullscreen))
+  else
+    let args = []
+    for arg in a:000
+      call add(args, shellescape(arg))
+    endfor
+
+    let lines = systemlist('. ~/.oh-my-zsh/plugins/z/z.sh; _z 2>&1 -l ' . join(args) . ' | tail -n 1 | sed "s/^[0-9.]* *//"')
+    if len(lines) == 0
+      echoerr "z: no match found: "
+      return
+    endif
+    let dir = lines[0]
+
+    execute "lcd " . dir
+    echom dir
+  endif
 endfunction
-
-" ale
-let g:ale_lint_on_text_changed = 'never'
-let g:ale_linters = {
-  \ 'go': ['gofmt', 'go build', 'go vet', 'golint'],
-  \ 'ruby': ['ruby']
-  \ }
-
-" direnv
-augroup InitVimDirenv
-  autocmd!
-  autocmd BufWritePost .envrc silent !direnv allow %
-  autocmd BufWritePost .envrc.local silent !direnv allow %
-augroup END
+command! -bang -nargs=* Z call s:z(<bang>0, <f-args>)
+nnoremap <Leader>z :Z<CR>
 
 " terraform
 let g:terraform_fmt_on_save = 1
 autocmd BufEnter *.tfvars autocmd! terraform BufWritePre *.tfvars
-
-" rust
-let g:rustfmt_autosave = 1
-let g:rustfmt_fail_silently= 1
